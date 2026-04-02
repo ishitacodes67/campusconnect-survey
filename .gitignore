@@ -1,4 +1,4 @@
-# ── NEVER commit these ──────────────────────────────────────────────
+# Secrets — NEVER commit
 .env
 *.db
 *.db-shm
