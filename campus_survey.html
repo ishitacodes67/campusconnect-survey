@@ -1,0 +1,849 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>CampusConnect — Student Survey</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet"/>
+<style>
+  :root {
+    --bg: #0d0f14;
+    --surface: #151820;
+    --surface2: #1c2030;
+    --border: #252a3a;
+    --accent: #4fffb0;
+    --accent2: #7b8fff;
+    --text: #e8eaf2;
+    --muted: #6b7280;
+    --danger: #ff6b6b;
+    --card-glow: 0 0 40px rgba(79,255,176,0.05);
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Noise texture overlay */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+    pointer-events: none;
+    z-index: 0;
+    opacity: 0.4;
+  }
+
+  /* Background blobs */
+  .bg-blob {
+    position: fixed;
+    border-radius: 50%;
+    filter: blur(90px);
+    pointer-events: none;
+    z-index: 0;
+  }
+  .blob1 { width: 500px; height: 500px; background: rgba(79,255,176,0.04); top: -100px; right: -100px; }
+  .blob2 { width: 400px; height: 400px; background: rgba(123,143,255,0.05); bottom: -50px; left: -80px; }
+
+  .container {
+    max-width: 680px;
+    margin: 0 auto;
+    padding: 48px 24px 80px;
+    position: relative;
+    z-index: 1;
+  }
+
+  /* Header */
+  .survey-header {
+    margin-bottom: 48px;
+    animation: fadeSlideUp 0.6s ease both;
+  }
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(79,255,176,0.08);
+    border: 1px solid rgba(79,255,176,0.2);
+    color: var(--accent);
+    font-family: 'Syne', sans-serif;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    padding: 6px 14px;
+    border-radius: 100px;
+    margin-bottom: 20px;
+  }
+  .badge-dot {
+    width: 6px; height: 6px;
+    background: var(--accent);
+    border-radius: 50%;
+    animation: pulse 2s infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.4; transform: scale(0.8); }
+  }
+  .survey-title {
+    font-family: 'Syne', sans-serif;
+    font-size: clamp(28px, 5vw, 42px);
+    font-weight: 800;
+    line-height: 1.15;
+    letter-spacing: -0.02em;
+    margin-bottom: 14px;
+  }
+  .survey-title span { color: var(--accent); }
+  .survey-desc {
+    color: var(--muted);
+    font-size: 15px;
+    line-height: 1.7;
+    font-weight: 300;
+    max-width: 520px;
+  }
+
+  /* Progress */
+  .progress-wrap {
+    margin-bottom: 36px;
+    animation: fadeSlideUp 0.6s 0.1s ease both;
+  }
+  .progress-meta {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+  }
+  .progress-label {
+    font-family: 'Syne', sans-serif;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--muted);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+  .progress-count {
+    font-family: 'Syne', sans-serif;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--accent);
+  }
+  .progress-bar-bg {
+    height: 3px;
+    background: var(--border);
+    border-radius: 100px;
+    overflow: hidden;
+  }
+  .progress-bar-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--accent), var(--accent2));
+    border-radius: 100px;
+    transition: width 0.5s cubic-bezier(0.4,0,0.2,1);
+    width: 0%;
+  }
+
+  /* Sections */
+  .section {
+    display: none;
+    animation: fadeSlideUp 0.45s ease both;
+  }
+  .section.active { display: block; }
+
+  @keyframes fadeSlideUp {
+    from { opacity: 0; transform: translateY(18px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  .section-label {
+    font-family: 'Syne', sans-serif;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--accent2);
+    margin-bottom: 6px;
+  }
+  .section-title {
+    font-family: 'Syne', sans-serif;
+    font-size: 20px;
+    font-weight: 700;
+    margin-bottom: 24px;
+    line-height: 1.3;
+  }
+
+  /* Question cards */
+  .q-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 24px;
+    margin-bottom: 16px;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    box-shadow: var(--card-glow);
+  }
+  .q-card:focus-within {
+    border-color: rgba(79,255,176,0.3);
+    box-shadow: 0 0 0 1px rgba(79,255,176,0.1), var(--card-glow);
+  }
+  .q-label {
+    font-size: 14px;
+    font-weight: 500;
+    margin-bottom: 14px;
+    line-height: 1.5;
+    color: var(--text);
+  }
+  .q-label .q-num {
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    color: var(--accent);
+    margin-right: 8px;
+  }
+  .required { color: var(--accent); }
+
+  /* Text inputs */
+  .q-input, .q-textarea, .q-select {
+    width: 100%;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 16px;
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 14px;
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    -webkit-appearance: none;
+  }
+  .q-input::placeholder, .q-textarea::placeholder { color: var(--muted); }
+  .q-input:focus, .q-textarea:focus, .q-select:focus {
+    border-color: rgba(79,255,176,0.4);
+    box-shadow: 0 0 0 3px rgba(79,255,176,0.07);
+  }
+  .q-textarea { resize: vertical; min-height: 90px; line-height: 1.6; }
+  .q-select { cursor: pointer; }
+  .q-select option { background: var(--surface2); color: var(--text); }
+
+  /* Radio / Checkbox options */
+  .options-grid {
+    display: grid;
+    gap: 8px;
+  }
+  .options-grid.cols2 { grid-template-columns: 1fr 1fr; }
+  .options-grid.cols3 { grid-template-columns: 1fr 1fr 1fr; }
+
+  .opt-label {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 14px;
+    cursor: pointer;
+    transition: border-color 0.2s, background 0.2s;
+    font-size: 13.5px;
+    font-weight: 400;
+    line-height: 1.3;
+    user-select: none;
+  }
+  .opt-label:hover { border-color: rgba(79,255,176,0.25); background: rgba(79,255,176,0.03); }
+  .opt-label input { display: none; }
+  .opt-label.checked {
+    border-color: rgba(79,255,176,0.5);
+    background: rgba(79,255,176,0.06);
+    color: var(--accent);
+  }
+  .opt-indicator {
+    width: 18px; height: 18px; min-width: 18px;
+    border: 2px solid var(--border);
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    transition: border-color 0.2s, background 0.2s;
+  }
+  .opt-label.checked .opt-indicator {
+    border-color: var(--accent);
+    background: var(--accent);
+  }
+  .opt-indicator::after {
+    content: '';
+    width: 6px; height: 6px;
+    background: var(--bg);
+    border-radius: 50%;
+    opacity: 0;
+    transition: opacity 0.15s;
+  }
+  .opt-label.checked .opt-indicator::after { opacity: 1; }
+
+  /* Checkbox variant */
+  .opt-label.checkbox .opt-indicator { border-radius: 5px; }
+  .opt-label.checkbox.checked .opt-indicator::after {
+    width: 8px; height: 6px;
+    background: none;
+    border-left: 2px solid var(--bg);
+    border-bottom: 2px solid var(--bg);
+    border-radius: 0;
+    transform: rotate(-45deg) translateY(-1px);
+    opacity: 1;
+  }
+
+  /* Scale rating */
+  .scale-wrap {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+  .scale-btn {
+    flex: 1;
+    min-width: 36px;
+    height: 42px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--muted);
+    font-family: 'Syne', sans-serif;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.18s;
+    outline: none;
+  }
+  .scale-btn:hover { border-color: rgba(79,255,176,0.3); color: var(--text); }
+  .scale-btn.selected {
+    background: rgba(79,255,176,0.1);
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+  .scale-labels {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 8px;
+    font-size: 11px;
+    color: var(--muted);
+    font-weight: 300;
+  }
+
+  /* Navigation */
+  .nav-wrap {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 32px;
+    gap: 12px;
+  }
+  .btn {
+    font-family: 'Syne', sans-serif;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    padding: 13px 28px;
+    border-radius: 10px;
+    cursor: pointer;
+    border: none;
+    outline: none;
+    transition: all 0.2s;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .btn-primary {
+    background: var(--accent);
+    color: #0d0f14;
+  }
+  .btn-primary:hover { background: #5fffc0; transform: translateY(-1px); box-shadow: 0 8px 24px rgba(79,255,176,0.2); }
+  .btn-secondary {
+    background: transparent;
+    color: var(--muted);
+    border: 1px solid var(--border);
+  }
+  .btn-secondary:hover { border-color: var(--accent2); color: var(--text); }
+  .btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none !important; box-shadow: none !important; }
+
+  /* Submit success */
+  .success-screen {
+    display: none;
+    text-align: center;
+    padding: 48px 24px;
+    animation: fadeSlideUp 0.5s ease both;
+  }
+  .success-screen.active { display: block; }
+  .success-icon {
+    width: 72px; height: 72px;
+    background: rgba(79,255,176,0.1);
+    border: 2px solid var(--accent);
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    margin: 0 auto 24px;
+    font-size: 28px;
+  }
+  .success-title {
+    font-family: 'Syne', sans-serif;
+    font-size: 28px;
+    font-weight: 800;
+    margin-bottom: 12px;
+    color: var(--accent);
+  }
+  .success-sub {
+    color: var(--muted);
+    font-size: 15px;
+    line-height: 1.7;
+    max-width: 400px;
+    margin: 0 auto 32px;
+  }
+  .success-stat {
+    display: inline-block;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px 32px;
+    font-family: 'Syne', sans-serif;
+    font-size: 13px;
+    color: var(--muted);
+  }
+  .success-stat strong { display: block; font-size: 26px; color: var(--accent); margin-bottom: 4px; }
+
+  /* Error message */
+  .err-msg {
+    color: var(--danger);
+    font-size: 12px;
+    margin-top: 8px;
+    display: none;
+  }
+  .err-msg.show { display: block; }
+
+  @media (max-width: 480px) {
+    .options-grid.cols2, .options-grid.cols3 { grid-template-columns: 1fr; }
+    .container { padding: 32px 16px 60px; }
+  }
+</style>
+</head>
+<body>
+<div class="bg-blob blob1"></div>
+<div class="bg-blob blob2"></div>
+
+<div class="container">
+
+  <!-- Header -->
+  <div class="survey-header">
+    <div class="badge"><span class="badge-dot"></span>CampusConnect Initiative</div>
+    <h1 class="survey-title">Help us build our<br><span>campus, our way.</span></h1>
+    <p class="survey-desc">We're a team of CSD students building a platform for campus engagement. Your answers directly shape what we build — takes about 4 minutes.</p>
+  </div>
+
+  <!-- Progress -->
+  <div class="progress-wrap" id="progressWrap">
+    <div class="progress-meta">
+      <span class="progress-label">Progress</span>
+      <span class="progress-count" id="progressCount">Section 1 of 5</span>
+    </div>
+    <div class="progress-bar-bg"><div class="progress-bar-fill" id="progressFill"></div></div>
+  </div>
+
+  <form id="surveyForm" novalidate>
+
+    <!-- ─── SECTION 1: About You ─── -->
+    <div class="section active" id="sec1">
+      <div class="section-label">Section 1 — About You</div>
+      <div class="section-title">Let's start with the basics</div>
+
+      <div class="q-card">
+        <div class="q-label"><span class="q-num">1.</span>What's your role? <span class="required">*</span></div>
+        <div class="options-grid" id="roleGroup">
+          <label class="opt-label"><input type="radio" name="role" value="Student"/><span class="opt-indicator"></span>Student</label>
+          <label class="opt-label"><input type="radio" name="role" value="Faculty"/><span class="opt-indicator"></span>Faculty</label>
+        </div>
+        <div class="err-msg" id="err_role">Please select your role.</div>
+      </div>
+
+      <div class="q-card">
+        <div class="q-label"><span class="q-num">2.</span>Which year/semester are you in? <span class="required">*</span></div>
+        <select class="q-select" name="year" id="year">
+          <option value="">— Select —</option>
+          <option>1st Year (Sem 1-2)</option>
+          <option>2nd Year (Sem 3-4)</option>
+          <option>3rd Year (Sem 5-6)</option>
+          <option>4th Year (Sem 7-8)</option>
+          <option>Faculty / Staff</option>
+        </select>
+        <div class="err-msg" id="err_year">Please select your year.</div>
+      </div>
+
+      <div class="q-card">
+        <div class="q-label"><span class="q-num">3.</span>Your department / branch <span class="required">*</span></div>
+        <select class="q-select" name="dept" id="dept">
+          <option value="">— Select —</option>
+          <option>Computer Science (CSE)</option>
+          <option>Computer Science & Design (CSD)</option>
+          <option>AI & Data Science (AIDS)</option>
+          <option>Electronics & Communication (ECE)</option>
+          <option>Mechanical Engineering</option>
+          <option>Civil Engineering</option>
+          <option>Polytechnic</option>
+          <option>Nursing</option>
+          <option>MBA / Management</option>
+          <option>Other</option>
+        </select>
+        <div class="err-msg" id="err_dept">Please select your department.</div>
+      </div>
+    </div>
+
+    <!-- ─── SECTION 2: Current Pain Points ─── -->
+    <div class="section" id="sec2">
+      <div class="section-label">Section 2 — The Problem</div>
+      <div class="section-title">How do you currently find out about campus events?</div>
+
+      <div class="q-card">
+        <div class="q-label"><span class="q-num">4.</span>How do you currently find out about campus events? <span class="required">*</span>(Select all that apply)</div>
+        <div class="options-grid" id="discoverGroup">
+          <label class="opt-label checkbox"><input type="checkbox" name="discover" value="WhatsApp groups"/><span class="opt-indicator"></span>WhatsApp groups</label>
+          <label class="opt-label checkbox"><input type="checkbox" name="discover" value="Notice boards"/><span class="opt-indicator"></span>Notice boards</label>
+          <label class="opt-label checkbox"><input type="checkbox" name="discover" value="Word of mouth"/><span class="opt-indicator"></span>Word of mouth</label>
+          <label class="opt-label checkbox"><input type="checkbox" name="discover" value="College website"/><span class="opt-indicator"></span>College website</label>
+          <label class="opt-label checkbox"><input type="checkbox" name="discover" value="Instagram/Social media"/><span class="opt-indicator"></span>Instagram / Social media</label>
+          <label class="opt-label checkbox"><input type="checkbox" name="discover" value="Emails from faculty"/><span class="opt-indicator"></span>Emails from faculty</label>
+        </div>
+        <div class="err-msg" id="err_discover">Please select at least one option.</div>
+      </div>
+
+      <div class="q-card">
+        <div class="q-label"><span class="q-num">5.</span>Have you ever missed an event because you didn't hear about it in time? <span class="required">*</span></div>
+        <div class="options-grid cols2" id="missedGroup">
+          <label class="opt-label"><input type="radio" name="missed" value="Yes, often"/><span class="opt-indicator"></span>Yes, often</label>
+          <label class="opt-label"><input type="radio" name="missed" value="Yes, once or twice"/><span class="opt-indicator"></span>Yes, once or twice</label>
+          <label class="opt-label"><input type="radio" name="missed" value="Rarely"/><span class="opt-indicator"></span>Rarely</label>
+          <label class="opt-label"><input type="radio" name="missed" value="Never"/><span class="opt-indicator"></span>Never</label>
+        </div>
+        <div class="err-msg" id="err_missed">Please select an option.</div>
+      </div>
+
+      <div class="q-card">
+        <div class="q-label"><span class="q-num">6.</span>On a scale of 1–5, how satisfied are you with how campus events are currently communicated? <span class="required">*</span></div>
+        <div class="scale-wrap" id="commSatisfaction">
+          <button type="button" class="scale-btn" onclick="selectScale(this,'commSatisfaction','comm_score')">1</button>
+          <button type="button" class="scale-btn" onclick="selectScale(this,'commSatisfaction','comm_score')">2</button>
+          <button type="button" class="scale-btn" onclick="selectScale(this,'commSatisfaction','comm_score')">3</button>
+          <button type="button" class="scale-btn" onclick="selectScale(this,'commSatisfaction','comm_score')">4</button>
+          <button type="button" class="scale-btn" onclick="selectScale(this,'commSatisfaction','comm_score')">5</button>
+        </div>
+        <div class="scale-labels"><span>Very dissatisfied</span><span>Very satisfied</span></div>
+        <input type="hidden" name="comm_score" id="comm_score"/>
+        <div class="err-msg" id="err_comm_score">Please rate your satisfaction.</div>
+      </div>
+    </div>
+
+    <!-- ─── SECTION 3: Interests & Recommendations ─── -->
+    <div class="section" id="sec3">
+      <div class="section-label">Section 3 — Interests & AI</div>
+      <div class="section-title">What events actually matter to you?</div>
+
+      <div class="q-card">
+        <div class="q-label"><span class="q-num">7.</span>Which types of campus events are you most interested in? <span class="required">*</span>(Select all that apply)</div>
+        <div class="options-grid cols2" id="interestGroup">
+          <label class="opt-label checkbox"><input type="checkbox" name="interests" value="Technical workshops"/><span class="opt-indicator"></span>Technical workshops</label>
+          <label class="opt-label checkbox"><input type="checkbox" name="interests" value="Hackathons"/><span class="opt-indicator"></span>Hackathons</label>
+          <label class="opt-label checkbox"><input type="checkbox" name="interests" value="Cultural fests"/><span class="opt-indicator"></span>Cultural fests</label>
+          <label class="opt-label checkbox"><input type="checkbox" name="interests" value="Sports events"/><span class="opt-indicator"></span>Sports events</label>
+          <label class="opt-label checkbox"><input type="checkbox" name="interests" value="Placement/career talks"/><span class="opt-indicator"></span>Placement / career talks</label>
+          <label class="opt-label checkbox"><input type="checkbox" name="interests" value="Guest lectures"/><span class="opt-indicator"></span>Guest lectures</label>
+          <label class="opt-label checkbox"><input type="checkbox" name="interests" value="Club activities"/><span class="opt-indicator"></span>Club activities</label>
+          <label class="opt-label checkbox"><input type="checkbox" name="interests" value="Seminars & conferences"/><span class="opt-indicator"></span>Seminars & conferences</label>
+          <label class="opt-label checkbox"><input type="checkbox" name="interests" value="AI & ML events"/><span class="opt-indicator"></span>AI & ML events</label>
+          <label class="opt-label checkbox"><input type="checkbox" name="interests" value="Design & creative"/><span class="opt-indicator"></span>Design & creative</label>
+        </div>
+        <div class="err-msg" id="err_interests">Please select at least one interest.</div>
+      </div>
+
+      <div class="q-card">
+        <div class="q-label"><span class="q-num">8.</span>Would you use a platform that shows you only events relevant to your interests, instead of all events? <span class="required">*</span></div>
+        <div class="options-grid" id="aiRecoGroup">
+          <label class="opt-label"><input type="radio" name="ai_reco" value="Yes, definitely"/><span class="opt-indicator"></span>Yes, definitely</label>
+          <label class="opt-label"><input type="radio" name="ai_reco" value="Yes, but I'd want to see all too"/><span class="opt-indicator"></span>Yes, but I'd want to see all too</label>
+          <label class="opt-label"><input type="radio" name="ai_reco" value="Neutral"/><span class="opt-indicator"></span>Neutral</label>
+          <label class="opt-label"><input type="radio" name="ai_reco" value="No, I prefer all events"/><span class="opt-indicator"></span>No, I prefer seeing all events</label>
+        </div>
+        <div class="err-msg" id="err_ai_reco">Please select an option.</div>
+      </div>
+
+      <div class="q-card">
+        <div class="q-label"><span class="q-num">9.</span>How would you prefer to be notified about relevant events? <span class="required">*</span>(Select all that apply)</div>
+        <div class="options-grid cols2" id="notifGroup">
+          <label class="opt-label checkbox"><input type="checkbox" name="notif" value="Push notification"/><span class="opt-indicator"></span>Push notification (browser/app)</label>
+          <label class="opt-label checkbox"><input type="checkbox" name="notif" value="WhatsApp message"/><span class="opt-indicator"></span>WhatsApp message</label>
+          <label class="opt-label checkbox"><input type="checkbox" name="notif" value="Email digest"/><span class="opt-indicator"></span>Email digest</label>
+          <label class="opt-label checkbox"><input type="checkbox" name="notif" value="SMS"/><span class="opt-indicator"></span>SMS</label>
+          <label class="opt-label checkbox"><input type="checkbox" name="notif" value="In-app only"/><span class="opt-indicator"></span>In-platform only (when I visit)</label>
+        </div>
+        <div class="err-msg" id="err_notif">Please select at least one option.</div>
+      </div>
+
+      <div class="q-card">
+        <div class="q-label"><span class="q-num">10.</span>How often would you want event notifications? <span class="required">*</span></div>
+        <div class="options-grid" id="notifFreqGroup">
+          <label class="opt-label"><input type="radio" name="notif_freq" value="As soon as posted"/><span class="opt-indicator"></span>As soon as an event is posted</label>
+          <label class="opt-label"><input type="radio" name="notif_freq" value="Daily digest"/><span class="opt-indicator"></span>Daily digest (once a day)</label>
+          <label class="opt-label"><input type="radio" name="notif_freq" value="Weekly digest"/><span class="opt-indicator"></span>Weekly digest</label>
+          <label class="opt-label"><input type="radio" name="notif_freq" value="Only before deadline"/><span class="opt-indicator"></span>Only reminders near deadlines</label>
+        </div>
+        <div class="err-msg" id="err_notif_freq">Please select an option.</div>
+      </div>
+    </div>
+
+    <!-- ─── SECTION 4: Features ─── -->
+    <div class="section" id="sec4">
+      <div class="section-label">Section 4 — Features</div>
+      <div class="section-title">What would make you actually use this platform?</div>
+
+      <div class="q-card">
+        <div class="q-label"><span class="q-num">11.</span>Which features would you find most useful on a campus website? <span class="required">*</span>(Select all that apply)</div>
+        <div class="options-grid" id="featuresGroup">
+          <label class="opt-label checkbox"><input type="checkbox" name="features" value="Personalized event feed"/><span class="opt-indicator"></span>Personalized event feed (AI-based)</label>
+          <label class="opt-label checkbox"><input type="checkbox" name="features" value="Hackathon tracker"/><span class="opt-indicator"></span>Hackathon & competition tracker</label>
+          <label class="opt-label checkbox"><input type="checkbox" name="features" value="Post-event feedback wall"/><span class="opt-indicator"></span>Post-event feedback wall (pics/videos/text)</label>
+          <label class="opt-label checkbox"><input type="checkbox" name="features" value="Event registration in-app"/><span class="opt-indicator"></span>One-click event registration</label>
+          <label class="opt-label checkbox"><input type="checkbox" name="features" value="Team formation for hackathons"/><span class="opt-indicator"></span>Team formation for hackathons</label>
+          <label class="opt-label checkbox"><input type="checkbox" name="features" value="Faculty announcements"/><span class="opt-indicator"></span>Faculty announcements section</label>
+          <label class="opt-label checkbox"><input type="checkbox" name="features" value="Event calendar view"/><span class="opt-indicator"></span>Event calendar view</label>
+          <label class="opt-label checkbox"><input type="checkbox" name="features" value="Certificates/badges"/><span class="opt-indicator"></span>Digital certificates / participation badges</label>
+          <label class="opt-label checkbox"><input type="checkbox" name="features" value="Event search & filter"/><span class="opt-indicator"></span>Search & filter events by category/date</label>
+          <label class="opt-label checkbox"><input type="checkbox" name="features" value="Student profiles"/><span class="opt-indicator"></span>Student profile with events attended</label>
+        </div>
+        <div class="err-msg" id="err_features">Please select at least one feature.</div>
+      </div>
+
+      <div class="q-card">
+        <div class="q-label"><span class="q-num">12.</span>Would you be comfortable sharing your interests with the platform so it can personalize your experience? <span class="required">*</span></div>
+        <div class="options-grid" id="privacyGroup">
+          <label class="opt-label"><input type="radio" name="privacy" value="Yes, fully comfortable"/><span class="opt-indicator"></span>Yes, fully comfortable</label>
+          <label class="opt-label"><input type="radio" name="privacy" value="Yes, if data stays within college"/><span class="opt-indicator"></span>Yes, if data stays within college</label>
+          <label class="opt-label"><input type="radio" name="privacy" value="Somewhat uncomfortable"/><span class="opt-indicator"></span>Somewhat uncomfortable</label>
+          <label class="opt-label"><input type="radio" name="privacy" value="No"/><span class="opt-indicator"></span>No</label>
+        </div>
+        <div class="err-msg" id="err_privacy">Please select an option.</div>
+      </div>
+
+      <div class="q-card">
+        <div class="q-label"><span class="q-num">13.</span>On a scale of 1–5, how likely are you to use a dedicated campus event website if it were available? <span class="required">*</span></div>
+        <div class="scale-wrap" id="likelyScale">
+          <button type="button" class="scale-btn" onclick="selectScale(this,'likelyScale','likely_score')">1</button>
+          <button type="button" class="scale-btn" onclick="selectScale(this,'likelyScale','likely_score')">2</button>
+          <button type="button" class="scale-btn" onclick="selectScale(this,'likelyScale','likely_score')">3</button>
+          <button type="button" class="scale-btn" onclick="selectScale(this,'likelyScale','likely_score')">4</button>
+          <button type="button" class="scale-btn" onclick="selectScale(this,'likelyScale','likely_score')">5</button>
+        </div>
+        <div class="scale-labels"><span>Not at all likely</span><span>Extremely likely</span></div>
+        <input type="hidden" name="likely_score" id="likely_score"/>
+        <div class="err-msg" id="err_likely_score">Please select a rating.</div>
+      </div>
+    </div>
+
+    <!-- ─── SECTION 5: Open Feedback ─── -->
+    <div class="section" id="sec5">
+      <div class="section-label">Section 5 — Open Feedback</div>
+      <div class="section-title">Your thoughts in your own words</div>
+
+      <div class="q-card">
+        <div class="q-label"><span class="q-num">14.</span>What's the biggest problem you face with finding out about campus events today? <span class="required">*</span></div>
+        <textarea class="q-textarea" name="biggest_problem" id="biggest_problem" placeholder="e.g. I never know when workshops are happening until it's too late..."></textarea>
+        <div class="err-msg" id="err_biggest_problem">Please share your thoughts — this is the most important question!</div>
+      </div>
+
+      <div class="q-card">
+        <div class="q-label"><span class="q-num">15.</span>If a smart campus website notified you about events matching your interests, what would make you keep using it?</div>
+        <textarea class="q-textarea" name="wishlist" id="wishlist" placeholder="e.g. Clean design, no spam, ability to RSVP directly..."></textarea>
+      </div>
+
+      <div class="q-card">
+        <div class="q-label"><span class="q-num">16.</span>Any other feedback or suggestions for our team?</div>
+        <textarea class="q-textarea" name="other" id="other" placeholder="Anything else you'd like to share..."></textarea>
+      </div>
+    </div>
+
+    <!-- Navigation -->
+    <div class="nav-wrap" id="navWrap">
+      <button type="button" class="btn btn-secondary" id="btnBack" onclick="navigate(-1)" disabled>← Back</button>
+      <button type="button" class="btn btn-primary" id="btnNext" onclick="navigate(1)">Next →</button>
+    </div>
+
+  </form>
+
+  <!-- Success Screen -->
+  <div class="success-screen" id="successScreen">
+    <div class="success-icon">✓</div>
+    <div class="success-title">Response recorded!</div>
+    <p class="success-sub">Thank you for helping us build CampusConnect. Your feedback directly shapes what we build next for our campus.</p>
+    <div class="success-stat"><strong id="responseCount">—</strong>responses collected so far</div>
+  </div>
+
+</div>
+
+<script>
+  // ── CONFIG: change this to your local IP if sharing on WiFi ──────────────
+  // Example: const API_URL = 'http://192.168.1.5:8000';
+  const API_URL = 'http://localhost:8000';
+  // ─────────────────────────────────────────────────────────────────────────
+
+  let currentSection = 1;
+  const totalSections = 5;
+  let responseCount = Math.floor(Math.random() * 30) + 12;
+
+  // ── Drive visual state from actual checkbox/radio state ──
+  function syncVisuals() {
+    // Radios
+    document.querySelectorAll('input[type="radio"]').forEach(input => {
+      input.closest('.opt-label').classList.toggle('checked', input.checked);
+    });
+    // Checkboxes
+    document.querySelectorAll('input[type="checkbox"]').forEach(input => {
+      input.closest('.opt-label').classList.toggle('checked', input.checked);
+    });
+  }
+
+  // Listen on every input change
+  document.addEventListener('change', function(e) {
+    if (e.target.matches('input[type="radio"], input[type="checkbox"]')) {
+      syncVisuals();
+    }
+  });
+
+  function selectScale(btn, wrapperId, inputId) {
+    document.querySelectorAll('#' + wrapperId + ' .scale-btn').forEach(b => b.classList.remove('selected'));
+    btn.classList.add('selected');
+    document.getElementById(inputId).value = btn.textContent.trim();
+  }
+
+  function updateProgress() {
+    const pct = ((currentSection - 1) / totalSections) * 100;
+    document.getElementById('progressFill').style.width = pct + '%';
+    document.getElementById('progressCount').textContent = 'Section ' + currentSection + ' of ' + totalSections;
+    document.getElementById('btnBack').disabled = currentSection === 1;
+    document.getElementById('btnNext').textContent = currentSection === totalSections ? 'Submit ✓' : 'Next →';
+  }
+
+  function getCheckedValues(name) {
+    return [...document.querySelectorAll('input[name="' + name + '"]:checked')].map(i => i.value);
+  }
+  function getRadioValue(name) {
+    const el = document.querySelector('input[name="' + name + '"]:checked');
+    return el ? el.value : '';
+  }
+  function showErr(id) { document.getElementById(id).classList.add('show'); }
+  function clearErr(id) { document.getElementById(id).classList.remove('show'); }
+
+  function validateSection(n) {
+    let valid = true;
+    if (n === 1) {
+      if (!getRadioValue('role'))                        { showErr('err_role');  valid = false; } else clearErr('err_role');
+      if (!document.getElementById('year').value)        { showErr('err_year');  valid = false; } else clearErr('err_year');
+      if (!document.getElementById('dept').value)        { showErr('err_dept');  valid = false; } else clearErr('err_dept');
+    }
+    if (n === 2) {
+      if (!getCheckedValues('discover').length)          { showErr('err_discover');   valid = false; } else clearErr('err_discover');
+      if (!getRadioValue('missed'))                      { showErr('err_missed');     valid = false; } else clearErr('err_missed');
+      if (!document.getElementById('comm_score').value) { showErr('err_comm_score'); valid = false; } else clearErr('err_comm_score');
+    }
+    if (n === 3) {
+      if (!getCheckedValues('interests').length)         { showErr('err_interests');  valid = false; } else clearErr('err_interests');
+      if (!getRadioValue('ai_reco'))                     { showErr('err_ai_reco');    valid = false; } else clearErr('err_ai_reco');
+      if (!getCheckedValues('notif').length)             { showErr('err_notif');      valid = false; } else clearErr('err_notif');
+      if (!getRadioValue('notif_freq'))                  { showErr('err_notif_freq'); valid = false; } else clearErr('err_notif_freq');
+    }
+    if (n === 4) {
+      if (!getCheckedValues('features').length)          { showErr('err_features');      valid = false; } else clearErr('err_features');
+      if (!getRadioValue('privacy'))                     { showErr('err_privacy');        valid = false; } else clearErr('err_privacy');
+      if (!document.getElementById('likely_score').value){ showErr('err_likely_score'); valid = false; } else clearErr('err_likely_score');
+    }
+    if (n === 5) {
+      if (!document.getElementById('biggest_problem').value.trim()) { showErr('err_biggest_problem'); valid = false; } else clearErr('err_biggest_problem');
+    }
+    return valid;
+  }
+
+  function navigate(dir) {
+    if (dir === 1 && !validateSection(currentSection)) return;
+    if (dir === 1 && currentSection === totalSections) { submitSurvey(); return; }
+
+    document.getElementById('sec' + currentSection).classList.remove('active');
+    currentSection += dir;
+    document.getElementById('sec' + currentSection).classList.add('active');
+    updateProgress();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  async function submitSurvey() {
+    const btn = document.getElementById('btnNext');
+    btn.disabled = true;
+    btn.textContent = 'Submitting...';
+
+    const data = {
+      role: getRadioValue('role'),
+      year: document.getElementById('year').value,
+      dept: document.getElementById('dept').value,
+      discover: getCheckedValues('discover'),
+      missed: getRadioValue('missed'),
+      comm_score: parseInt(document.getElementById('comm_score').value),
+      interests: getCheckedValues('interests'),
+      ai_reco: getRadioValue('ai_reco'),
+      notif: getCheckedValues('notif'),
+      notif_freq: getRadioValue('notif_freq'),
+      features: getCheckedValues('features'),
+      privacy: getRadioValue('privacy'),
+      likely_score: parseInt(document.getElementById('likely_score').value),
+      biggest_problem: document.getElementById('biggest_problem').value,
+      wishlist: document.getElementById('wishlist').value,
+      other: document.getElementById('other').value,
+    };
+
+    // Show submitting state
+    const form      = document.getElementById('surveyForm');
+    const progress  = document.getElementById('progressWrap');
+    const successEl = document.getElementById('successScreen');
+
+    try {
+      const res = await fetch(API_URL + '/api/survey', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      });
+      const result = await res.json();
+      if (!res.ok) {
+        throw new Error(result.detail || 'The server rejected the submission.');
+      }
+      responseCount = result.total_responses || responseCount + 1;
+
+      // Only show success when data is confirmed saved
+      form.style.display    = 'none';
+      progress.style.display = 'none';
+      document.getElementById('responseCount').textContent = responseCount;
+      successEl.classList.add('active');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+
+    } catch (e) {
+      // Do NOT show success — tell the user exactly what happened
+      btn.disabled    = false;
+      btn.textContent = 'Submit ✓';
+
+      let msg = e.message || 'Unknown error';
+      if (msg.includes('fetch') || msg.includes('Failed to fetch') || msg.includes('NetworkError')) {
+        msg = 'Could not reach the server. Make sure the backend is running (python main.py) and try again.';
+      }
+
+      // Show inline error above the submit button
+      let errEl = document.getElementById('submit-error');
+      if (!errEl) {
+        errEl = document.createElement('div');
+        errEl.id = 'submit-error';
+        errEl.style.cssText = 'color:#ff6b6b;font-size:13px;margin-top:12px;padding:12px 16px;background:rgba(255,107,107,.08);border:1px solid rgba(255,107,107,.2);border-radius:10px;line-height:1.5';
+        document.getElementById('navWrap').insertAdjacentElement('beforebegin', errEl);
+      }
+      errEl.textContent = '⚠ Submission failed — ' + msg;
+      errEl.style.display = 'block';
+      window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+    }
+  }
+
+  updateProgress();
+</script>
+</body>
+</html>
