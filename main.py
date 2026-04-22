@@ -1,6 +1,6 @@
 """
 CampusConnect Survey Backend
-FastAPI + Supabase + JWT dashboard auth
+FastAPI + Supabase REST API + JWT dashboard auth
 Works 24/7 — no local terminal needed
 """
 
@@ -19,7 +19,7 @@ from collections import defaultdict
 from datetime import datetime, timezone, timedelta
 from typing import Optional
 from models import SurveyResponse, DashboardLogin, TokenResponse
-from database import init_db, get_supabase
+from database import init_db, supabase_get, supabase_insert, supabase_delete, supabase_count
 from config import settings
 
 
@@ -161,7 +161,7 @@ h1{{font-family:'Syne',sans-serif;font-size:26px;font-weight:800;margin-bottom:1
 <div class="card">
   <div class="logo">◆ CampusConnect</div>
   <h1>Share the Survey</h1>
-  <p class="sub">Anyone can fill this from any device, any network, anywhere — no WiFi restrictions.</p>
+  <p class="sub">Anyone can fill this from any device, any network, anywhere in the world.</p>
   <div class="qr-wrap" id="qrcode"></div>
   <div class="url-box">{survey_url}</div>
   <div class="copied" id="copiedMsg"></div>
@@ -212,7 +212,6 @@ function downloadQR() {{
 @app.post("/api/survey", status_code=201)
 def submit_survey(payload: SurveyResponse):
     try:
-        client = get_supabase()
         data = {
             "submitted_at":    datetime.now(timezone.utc).isoformat(),
             "role":            payload.role,
@@ -232,9 +231,9 @@ def submit_survey(payload: SurveyResponse):
             "wishlist":        payload.wishlist or "",
             "other":           payload.other or "",
         }
-        client.table("responses").insert(data).execute()
-        total = client.table("responses").select("id", count="exact").execute()
-        return {"success": True, "total_responses": total.count or 0}
+        supabase_insert("responses", data)
+        total = supabase_count("responses")
+        return {"success": True, "total_responses": total}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to save: {e}")
 
@@ -264,27 +263,32 @@ def get_responses(
 ):
     page  = max(1, page)
     limit = max(1, min(limit, 200))
+    offset = (page - 1) * limit
 
     try:
-        client = get_supabase()
-        query  = client.table("responses").select("*", count="exact")
-        if dept: query = query.eq("dept", dept)
-        if role: query = query.eq("role", role)
+        params = {
+            "select": "*",
+            "order":  "submitted_at.desc",
+            "limit":  str(limit),
+            "offset": str(offset),
+        }
+        count_params = {}
+        if dept:
+            params["dept"]       = f"eq.{dept}"
+            count_params["dept"] = f"eq.{dept}"
+        if role:
+            params["role"]       = f"eq.{role}"
+            count_params["role"] = f"eq.{role}"
 
-        total_res = client.table("responses").select("id", count="exact")
-        if dept: total_res = total_res.eq("dept", dept)
-        if role: total_res = total_res.eq("role", role)
-        total = total_res.execute().count or 0
-
-        offset = (page - 1) * limit
-        rows   = query.order("submitted_at", desc=True).range(offset, offset + limit - 1).execute()
+        data  = supabase_get("responses", params)
+        total = supabase_count("responses", count_params)
 
         return {
             "total": total,
             "page":  page,
             "limit": limit,
             "pages": max(1, -(-total // limit)),
-            "data":  rows.data or [],
+            "data":  data,
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -294,9 +298,7 @@ def get_responses(
 @app.get("/api/dashboard/stats")
 def get_stats(_: dict = Depends(verify_token)):
     try:
-        client   = get_supabase()
-        result   = client.table("responses").select("*").execute()
-        all_rows = result.data or []
+        all_rows = supabase_get("responses", {"select": "*", "limit": "1000"})
         total    = len(all_rows)
 
         if total == 0:
@@ -362,9 +364,7 @@ def get_stats(_: dict = Depends(verify_token)):
 def export_csv(_: dict = Depends(verify_token)):
     import csv, io
     try:
-        client = get_supabase()
-        rows   = client.table("responses").select("*").order("submitted_at", desc=True).execute()
-        data   = rows.data or []
+        data = supabase_get("responses", {"select": "*", "order": "submitted_at.desc", "limit": "10000"})
         if not data:
             raise HTTPException(status_code=404, detail="No responses to export yet")
 
@@ -395,9 +395,8 @@ def export_csv(_: dict = Depends(verify_token)):
 @app.delete("/api/dashboard/responses/{response_id}")
 def delete_response(response_id: int, _: dict = Depends(verify_token)):
     try:
-        client = get_supabase()
-        result = client.table("responses").delete().eq("id", response_id).execute()
-        if not result.data:
+        result = supabase_delete("responses", "id", response_id)
+        if not result:
             raise HTTPException(status_code=404, detail="Response not found")
         return {"success": True, "deleted_id": response_id}
     except HTTPException:

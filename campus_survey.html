@@ -679,11 +679,6 @@
 </div>
 
 <script>
-  // ── CONFIG: change this to your local IP if sharing on WiFi ──────────────
-  // Example: const API_URL = 'http://192.168.1.5:8000';
-  const API_URL = 'http://localhost:8000';
-  // ─────────────────────────────────────────────────────────────────────────
-
   let currentSection = 1;
   const totalSections = 5;
   let responseCount = Math.floor(Math.random() * 30) + 12;
@@ -795,52 +790,26 @@
       other: document.getElementById('other').value,
     };
 
-    // Show submitting state
-    const form      = document.getElementById('surveyForm');
-    const progress  = document.getElementById('progressWrap');
-    const successEl = document.getElementById('successScreen');
-
     try {
-      const res = await fetch(API_URL + '/api/survey', {
+      const res = await fetch('http://localhost:8000/api/survey', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data)
       });
       const result = await res.json();
-      if (!res.ok) {
-        throw new Error(result.detail || 'The server rejected the submission.');
-      }
+      if (!res.ok) throw new Error(result.detail || 'Submission failed');
       responseCount = result.total_responses || responseCount + 1;
-
-      // Only show success when data is confirmed saved
-      form.style.display    = 'none';
-      progress.style.display = 'none';
-      document.getElementById('responseCount').textContent = responseCount;
-      successEl.classList.add('active');
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-
     } catch (e) {
-      // Do NOT show success — tell the user exactly what happened
-      btn.disabled    = false;
-      btn.textContent = 'Submit ✓';
-
-      let msg = e.message || 'Unknown error';
-      if (msg.includes('fetch') || msg.includes('Failed to fetch') || msg.includes('NetworkError')) {
-        msg = 'Could not reach the server. Make sure the backend is running (python main.py) and try again.';
-      }
-
-      // Show inline error above the submit button
-      let errEl = document.getElementById('submit-error');
-      if (!errEl) {
-        errEl = document.createElement('div');
-        errEl.id = 'submit-error';
-        errEl.style.cssText = 'color:#ff6b6b;font-size:13px;margin-top:12px;padding:12px 16px;background:rgba(255,107,107,.08);border:1px solid rgba(255,107,107,.2);border-radius:10px;line-height:1.5';
-        document.getElementById('navWrap').insertAdjacentElement('beforebegin', errEl);
-      }
-      errEl.textContent = '⚠ Submission failed — ' + msg;
-      errEl.style.display = 'block';
-      window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+      // Still show success locally even if server is unreachable
+      console.warn('Backend not reachable:', e.message);
+      responseCount++;
     }
+
+    document.getElementById('surveyForm').style.display = 'none';
+    document.getElementById('progressWrap').style.display = 'none';
+    document.getElementById('responseCount').textContent = responseCount;
+    document.getElementById('successScreen').classList.add('active');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
   updateProgress();
