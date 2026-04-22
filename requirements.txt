@@ -6,8 +6,3 @@ bcrypt==4.0.1
 PyJWT==2.8.0
 python-dotenv==1.0.0
 httpx==0.25.2
-supabase==2.0.0
-gotrue==1.3.0
-postgrest==0.13.2
-storage3==0.6.1
-supafunc==0.3.1
